@@ -4,6 +4,7 @@ import SignupPage from "./pages/SignupPage";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
+import ChatPage from "./pages/ChatPage";
 
 function HomePage() {
   const { profile } = useAuth();
@@ -34,6 +35,11 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/chat/:otherUid" element={
+          <ProtectedRoute>
+            <ChatPage />
+          </ProtectedRoute>
+        }/>
       </Routes>
     </BrowserRouter>
   );
