@@ -1,24 +1,13 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import ChatPage from "./pages/ChatPage";
+import InboxPage from "./pages/InboxPage";
+import MylistingsPage from "./pages/MylistingsPage";
+import MarketplacePage from "./pages/MarketplacePage";
+import CreateItemPage from "./pages/CreateItemPage";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { useAuth } from "./context/AuthContext";
-import ChatPage from "./pages/ChatPage";
-
-function HomePage() {
-  const { profile } = useAuth();
-  return (
-    <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold text-gray-900">
-        Hi{profile?.fullName ? `, ${profile.fullName}` : ""}!
-      </h1>
-      <p className="text-gray-500 mt-1">
-        Marketplace and Lost &amp; Found are coming soon.
-      </p>
-    </div>
-  );
-}
 
 export default function App() {
   return (
@@ -31,15 +20,42 @@ export default function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <HomePage />
+              <MarketplacePage />
             </ProtectedRoute>
           }
         />
-        <Route path="/chat/:otherUid" element={
-          <ProtectedRoute>
-            <ChatPage />
-          </ProtectedRoute>
-        }/>
+        <Route
+          path="/sell"
+          element={
+            <ProtectedRoute>
+              <CreateItemPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-listings"
+          element={
+            <ProtectedRoute>
+              <MylistingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <InboxPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat/:otherUid"
+          element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

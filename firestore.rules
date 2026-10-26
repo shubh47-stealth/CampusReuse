@@ -25,13 +25,36 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---------- Public profiles: name and hostel only ----------
+    // This is the contact privacy guard: email and room number never live here.
+    match /publicProfiles/{uid} {
+      allow read: if signedIn();
+      allow create, update: if isSelf(uid)
+                            && request.resource.data.keys().hasOnly(['uid', 'fullName', 'hostelBlock'])
+                            && request.resource.data.uid == uid;
+      allow delete: if false;
+    }
+
     // ---------- Marketplace items: public read when active ----------
-    // Assumes Dev 2 stores `status` ("active", ...) and `ownerId` on each item.
+    // Queries must filter on status == 'active' to be allowed.
     match /items/{itemId} {
       allow read: if resource.data.status == 'active'
                   || (signedIn() && resource.data.ownerId == request.auth.uid);
-      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn()
+                    && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.status == 'active'
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.price is number
+                    && request.resource.data.price >= 0;
+      // Only the owner can change an item, the owner can't be swapped,
+      // status must stay one of the three states, and "sold" is final.
+      allow update: if signedIn()
+                    && resource.data.ownerId == request.auth.uid
+                    && resource.data.status != 'sold'
+                    && request.resource.data.ownerId == resource.data.ownerId
+                    && request.resource.data.status in ['active', 'reserved', 'sold'];
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
     // ---------- Direct chats: private to the two participants ----------

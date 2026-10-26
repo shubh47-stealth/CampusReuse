@@ -1,7 +1,8 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
+import { ensurePublicProfile } from "../services/profileService";
 
 const AuthContext = createContext({
   currentUser: null,
@@ -13,6 +14,7 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const ensuredPublicProfile = useRef(new Set());
 
   useEffect(() => {
     let unsubProfile = null;
@@ -38,6 +40,12 @@ export function AuthProvider({ children }) {
         (snap) => {
           setProfile(snap.exists() ? { id: snap.id, ...snap.data() } : null);
           setLoading(false);
+
+          // Make sure older accounts also have a public profile (once per session)
+          if (snap.exists() && !ensuredPublicProfile.current.has(user.uid)) {
+            ensuredPublicProfile.current.add(user.uid);
+            ensurePublicProfile(user.uid, snap.data()).catch(console.error);
+          }
         },
         (err) => {
           console.error("Profile listener error:", err);

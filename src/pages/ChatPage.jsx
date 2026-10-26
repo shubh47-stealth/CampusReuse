@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Send } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, Send } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { ensureChat, sendMessage, subscribeToMessages } from "../services/chatService";
+import {
+  ensureChat,
+  markChatRead,
+  sendMessage,
+  subscribeToMessages,
+} from "../services/chatService";
+import { getPublicProfile } from "../services/profileService";
 
 export default function ChatPage() {
   const { otherUid } = useParams();
@@ -12,6 +18,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const [otherProfile, setOtherProfile] = useState(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -45,6 +52,26 @@ export default function ChatPage() {
     };
   }, [currentUser, otherUid]);
 
+  // Show the other person's name instead of their id
+  useEffect(() => {
+    let cancelled = false;
+    getPublicProfile(otherUid).then((p) => {
+      if (!cancelled) setOtherProfile(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [otherUid]);
+
+  // Mark the conversation as read while it's open and the latest message is theirs
+  useEffect(() => {
+    if (!chatId || !currentUser || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    if (last.senderId !== currentUser.uid) {
+      markChatRead(chatId, currentUser.uid).catch((err) => console.error(err));
+    }
+  }, [chatId, messages, currentUser]);
+
   // Keep the newest message in view
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -71,9 +98,18 @@ export default function ChatPage() {
   return (
     <div className="max-w-2xl mx-auto p-4">
       <div className="bg-white rounded-2xl shadow-lg flex flex-col h-[75vh]">
-        <div className="px-4 py-3 border-b border-gray-200">
-          <h1 className="font-semibold text-gray-900">Chat</h1>
-          <p className="text-xs text-gray-400 truncate">with {otherUid}</p>
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-3">
+          <Link to="/messages" aria-label="Back to messages" className="text-gray-500 hover:text-gray-900">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="font-semibold text-gray-900 truncate">
+              {otherProfile?.fullName || "Chat"}
+            </h1>
+            {otherProfile?.hostelBlock && (
+              <p className="text-xs text-gray-400 truncate">{otherProfile.hostelBlock}</p>
+            )}
+          </div>
         </div>
 
         {error && (
