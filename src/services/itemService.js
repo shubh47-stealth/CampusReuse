@@ -72,6 +72,23 @@ export function subscribeToItems(filters, onItems, onError) {
   );
 }
 
+// Everything this user has listed, in any status, newest first.
+// The ownerId filter is what lets the security rules allow reading non-active items.
+export function subscribeToMyItems(uid, onItems, onError) {
+  const q = query(collection(db, "items"), where("ownerId", "==", uid));
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const time = (i) => (i.createdAt ? i.createdAt.toMillis() : Date.now());
+      items.sort((a, b) => time(b) - time(a));
+      onItems(items);
+    },
+    onError
+  );
+}
+
 export function setItemStatus(itemId, status) {
   return updateDoc(doc(db, "items", itemId), { status });
 }

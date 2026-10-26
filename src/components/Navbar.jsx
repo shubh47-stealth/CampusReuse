@@ -30,6 +30,12 @@ export default function Navbar() {
         {currentUser ? (
           <div className="flex items-center gap-4">
             <Link
+              to="/my-listings"
+              className="text-sm text-gray-600 hover:text-emerald-600"
+            >
+              My listings
+            </Link>
+            <Link
               to="/messages"
               className="relative flex items-center gap-1 text-sm text-gray-600 hover:text-emerald-600"
             >
