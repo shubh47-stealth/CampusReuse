@@ -4,7 +4,7 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
 
 /**
@@ -17,7 +17,10 @@ export async function signUp(email, password, { fullName, hostelBlock, roomNumbe
 
   await updateProfile(user, { displayName: fullName });
 
-  await setDoc(doc(db, "users", user.uid), {
+  // Write both documents together: the private profile (email, room number)
+  // and the public profile other students are allowed to see (name, hostel).
+  const batch = writeBatch(db);
+  batch.set(doc(db, "users", user.uid), {
     uid: user.uid,
     fullName,
     email,
@@ -25,6 +28,12 @@ export async function signUp(email, password, { fullName, hostelBlock, roomNumbe
     roomNumber,
     createdAt: serverTimestamp(),
   });
+  batch.set(doc(db, "publicProfiles", user.uid), {
+    uid: user.uid,
+    fullName,
+    hostelBlock,
+  });
+  await batch.commit();
 
   return user;
 }
