@@ -1,11 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Recycle, LogOut } from "lucide-react";
+import { Recycle, LogOut, MessageCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useChats } from "../hooks/useChats";
+import { isUnread } from "../services/chatService";
 import { logOut } from "../services/authService";
 
 export default function Navbar() {
   const { currentUser, profile } = useAuth();
+  const { chats } = useChats();
   const navigate = useNavigate();
+
+  const unreadCount = currentUser
+    ? chats.filter((c) => isUnread(c, currentUser.uid)).length
+    : 0;
 
   async function handleLogout() {
     await logOut();
@@ -22,7 +29,22 @@ export default function Navbar() {
 
         {currentUser ? (
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600 hidden sm:inline">
+            <Link
+              to="/messages"
+              className="relative flex items-center gap-1 text-sm text-gray-600 hover:text-emerald-600"
+            >
+              <MessageCircle className="h-5 w-5" />
+              <span className="hidden sm:inline">Messages</span>
+              {unreadCount > 0 && (
+                <span
+                  aria-label={`${unreadCount} unread conversations`}
+                  className="absolute -top-2 -right-3 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[11px] font-medium flex items-center justify-center"
+                >
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
+            <span className="text-sm text-gray-600 hidden md:inline">
               {profile?.fullName || currentUser.displayName || currentUser.email}
               {profile?.hostelBlock ? ` · ${profile.hostelBlock}` : ""}
             </span>

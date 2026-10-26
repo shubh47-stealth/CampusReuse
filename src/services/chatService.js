@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   doc,
   limit,
@@ -8,12 +7,19 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
+  where,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 
 // Same chat id no matter who starts the conversation
 export function getChatId(uidA, uidB) {
   return [uidA, uidB].sort().join("_");
+}
+
+export function getOtherUid(chat, myUid) {
+  return chat.participants.find((p) => p !== myUid);
 }
 
 // Create the chat document if it doesn't exist yet.
@@ -29,14 +35,33 @@ export async function ensureChat(uidA, uidB) {
   return chatId;
 }
 
+// Saves the message and updates the chat's "last message" summary together,
+// so the inbox never shows a message that wasn't saved (or the other way round).
 export async function sendMessage(chatId, senderId, text) {
   const trimmed = text.trim();
   if (!trimmed) return;
 
-  await addDoc(collection(db, "chats", chatId, "messages"), {
+  const chatRef = doc(db, "chats", chatId);
+  const messageRef = doc(collection(db, "chats", chatId, "messages"));
+
+  const batch = writeBatch(db);
+  batch.set(messageRef, {
     text: trimmed,
     senderId,
     createdAt: serverTimestamp(),
+  });
+  batch.update(chatRef, {
+    lastMessage: { text: trimmed.slice(0, 120), senderId },
+    lastMessageAt: serverTimestamp(),
+    [`lastRead.${senderId}`]: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
+// Record that this user has seen everything in the chat so far
+export function markChatRead(chatId, uid) {
+  return updateDoc(doc(db, "chats", chatId), {
+    [`lastRead.${uid}`]: serverTimestamp(),
   });
 }
 
@@ -57,4 +82,36 @@ export function subscribeToMessages(chatId, onMessages, onError) {
     },
     onError
   );
+}
+
+// Live list of this user's conversations, most recent first.
+// Chats with no messages yet are hidden. Sorting happens here so no index is needed.
+export function subscribeToChats(uid, onChats, onError) {
+  const q = query(collection(db, "chats"), where("participants", "array-contains", uid));
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const time = (c) => (c.lastMessageAt ? c.lastMessageAt.toMillis() : Date.now());
+      const chats = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((c) => c.lastMessage)
+        .sort((a, b) => time(b) - time(a));
+      onChats(chats);
+    },
+    onError
+  );
+}
+
+// A chat is unread if the latest message is from the other person
+// and arrived after this user last opened the chat.
+export function isUnread(chat, uid) {
+  if (!chat.lastMessage || chat.lastMessage.senderId === uid) return false;
+
+  const lastReadStamp = chat.lastRead?.[uid];
+  if (lastReadStamp === null) return false; // write still pending, so we just read it
+
+  const lastMessageTime = chat.lastMessageAt ? chat.lastMessageAt.toMillis() : 0;
+  const lastReadTime = lastReadStamp ? lastReadStamp.toMillis() : 0;
+  return lastReadTime < lastMessageTime;
 }
