@@ -57,6 +57,28 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
+    // ---------- Lost & Found reports: signed-in students only ----------
+    // Queries must filter on status == 'open' to be allowed.
+    match /lostFound/{reportId} {
+      allow read: if signedIn()
+                  && (resource.data.status == 'open'
+                      || resource.data.reporterId == request.auth.uid);
+      allow create: if signedIn()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.type in ['lost', 'found']
+                    && request.resource.data.status == 'open'
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() > 0
+                    && request.resource.data.title.size() <= 80;
+      // The reporter can close their own open report; "returned" is final.
+      allow update: if signedIn()
+                    && resource.data.reporterId == request.auth.uid
+                    && resource.data.status == 'open'
+                    && request.resource.data.reporterId == resource.data.reporterId
+                    && request.resource.data.status in ['open', 'returned'];
+      allow delete: if signedIn() && resource.data.reporterId == request.auth.uid;
+    }
+
     // ---------- Direct chats: private to the two participants ----------
     match /chats/{chatId} {
       allow read: if signedIn() && request.auth.uid in resource.data.participants;
