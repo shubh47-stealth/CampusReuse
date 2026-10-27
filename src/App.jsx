@@ -3,7 +3,9 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import ChatPage from "./pages/ChatPage";
 import InboxPage from "./pages/InboxPage";
-import MylistingsPage from "./pages/MylistingsPage";
+import MyListingsPage from "./pages/MyListingsPage";
+import LostFoundPage from "./pages/LostFoundPage";
+import ReportItemPage from "./pages/ReportItemPage";
 import MarketplacePage from "./pages/MarketplacePage";
 import CreateItemPage from "./pages/CreateItemPage";
 import Navbar from "./components/Navbar";
@@ -33,10 +35,26 @@ export default function App() {
           }
         />
         <Route
+          path="/lost-found"
+          element={
+            <ProtectedRoute>
+              <LostFoundPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lost-found/new"
+          element={
+            <ProtectedRoute>
+              <ReportItemPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/my-listings"
           element={
             <ProtectedRoute>
-              <MylistingsPage />
+              <MyListingsPage />
             </ProtectedRoute>
           }
         />
