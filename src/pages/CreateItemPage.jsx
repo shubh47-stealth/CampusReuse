@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { CATEGORIES, createItem } from "../services/itemService";
+import { MAX_IMAGE_BYTES, uploadImage } from "../services/imageService";
 
 const inputClass =
   "w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500";
@@ -19,9 +20,36 @@ export default function CreateItemPage() {
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [preview, setPreview] = useState("");
 
   const update = (field) => (e) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  function handleImageChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose an image file.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError("Image must be under 5 MB.");
+      return;
+    }
+
+    setError("");
+    if (preview) URL.revokeObjectURL(preview);
+    setImageFile(file);
+    setPreview(URL.createObjectURL(file));
+  }
+
+  function removeImage() {
+    if (preview) URL.revokeObjectURL(preview);
+    setImageFile(null);
+    setPreview("");
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -38,7 +66,18 @@ export default function CreateItemPage() {
 
     setSubmitting(true);
     try {
-      await createItem(currentUser, profile, form);
+      let imageUrl = null;
+      if (imageFile) {
+        try {
+          imageUrl = await uploadImage(imageFile);
+        } catch (uploadErr) {
+          console.error(uploadErr);
+          setError(uploadErr.message || "Could not upload the photo.");
+          return;
+        }
+      }
+
+      await createItem(currentUser, profile, { ...form, imageUrl });
       navigate("/");
     } catch (err) {
       console.error(err);
@@ -145,6 +184,32 @@ export default function CreateItemPage() {
               />
             </div>
           )}
+
+          <div>
+            <label htmlFor="photo" className="block text-sm font-medium text-gray-700 mb-1">
+              Photo (optional)
+            </label>
+            {preview ? (
+              <div className="flex items-center gap-3">
+                <img src={preview} alt="Preview" className="h-24 w-24 rounded-lg object-cover" />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="text-sm text-gray-500 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <input
+                id="photo"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:text-emerald-700 file:px-3 file:py-2 file:cursor-pointer"
+              />
+            )}
+          </div>
 
           <button
             type="submit"
